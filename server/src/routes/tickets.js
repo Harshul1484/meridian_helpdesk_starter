@@ -72,9 +72,11 @@ router.patch('/:id/assign', requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete('/:id', requireAuth, async (req, res, next) => {
+router.delete('/:id', requireAuth, requireRole('admin'), async (req, res, next) => {
   try {
-    const ticket = await getTicketById(Number(req.params.id));
+    // Scope the lookup to the caller's org so an admin cannot delete another
+    // customer's tickets; a foreign ticket reads as "not found".
+    const ticket = await getTicketById(Number(req.params.id), req.user.orgId);
     if (!ticket) return res.status(404).json({ error: 'Not found' });
     await deleteTicket(ticket.id);
     res.status(204).end();
