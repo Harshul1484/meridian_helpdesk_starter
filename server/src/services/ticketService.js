@@ -1,4 +1,6 @@
 import { query } from '../db/pool.js';
+import { config } from '../config.js';
+import { evaluateSla } from './sla.js';
 
 const PAGE_SIZE = 20;
 
@@ -12,13 +14,45 @@ const SORTABLE = {
   status: 't.status',
 };
 
+// --- SLA (Part 2) ---------------------------------------------------------
+// The "first response" that stops the SLA clock: the earliest non-internal
+// comment written by an agent or admin. Internal notes and the requester's own
+// messages do not count as a response to the customer. LEFT JOIN so tickets
+// with no response yet survive with first_response_at = NULL.
+const FIRST_RESPONSE_JOIN = `
+       LEFT JOIN (
+         SELECT c.ticket_id, MIN(c.created_at) AS first_response_at
+           FROM comments c
+           JOIN users au ON au.id = c.author_id
+          WHERE c.is_internal = 0 AND au.role IN ('agent','admin')
+          GROUP BY c.ticket_id
+       ) fr ON fr.ticket_id = t.id`;
+
+// Seconds on the SLA clock: creation -> first response, or -> now if none yet.
+// UTC_TIMESTAMP() is used (not NOW()) because the seed and the comments route
+// write UTC-naive timestamps while the DB session runs at +05:30; comparing
+// against UTC keeps the elapsed time true. See DECISIONS.md.
+const ELAPSED_SECONDS =
+  'TIMESTAMPDIFF(SECOND, t.created_at, COALESCE(fr.first_response_at, UTC_TIMESTAMP()))';
+
+// Target seconds by priority, sourced from config.slaTargets so the numbers
+// live in one place. Used only for the breached-only filter (the badge itself
+// is decided in JS by evaluateSla).
+const TARGET_SECONDS_CASE = "CASE t.priority WHEN 'P1' THEN ? WHEN 'P2' THEN ? WHEN 'P3' THEN ? END";
+const targetParams = [
+  config.slaTargets.P1 * 3600,
+  config.slaTargets.P2 * 3600,
+  config.slaTargets.P3 * 3600,
+];
+const BREACH_CONDITION = `${ELAPSED_SECONDS} > ${TARGET_SECONDS_CASE}`;
+
 /**
  * Paginated ticket list for the current organisation.
  *
  * Supports free-text search on subject, filtering by status and priority,
  * and sorting by any column the UI exposes in its dropdown.
  */
-export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc' }) {
+export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc', breachedOnly = false }) {
   const where = ['t.org_id = ?'];
   const params = [orgId];
 
@@ -45,27 +79,43 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
   const sortCol = SORTABLE[sortBy] || SORTABLE.created_at;
   const sortDir = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
+  // The breach filter needs the same target params, injected in SQL text order.
+  const breachSql = breachedOnly ? ` AND ${BREACH_CONDITION}` : '';
+  const breachP = breachedOnly ? targetParams : [];
+
   const rows = await query(
     `SELECT t.id, t.subject, t.status, t.priority, t.created_at, t.updated_at,
-            t.assignee_id, u.name AS assignee_name, r.name AS requester_name
+            t.assignee_id, u.name AS assignee_name, r.name AS requester_name,
+            fr.first_response_at,
+            ${ELAPSED_SECONDS} AS elapsed_seconds
        FROM tickets t
        LEFT JOIN users u ON u.id = t.assignee_id
-       JOIN users r ON r.id = t.requester_id
-      WHERE ${whereSql}
+       JOIN users r ON r.id = t.requester_id${FIRST_RESPONSE_JOIN}
+      WHERE ${whereSql}${breachSql}
       ORDER BY ${sortCol} ${sortDir}
       LIMIT ? OFFSET ?`,
-    [...params, PAGE_SIZE, offset]
+    [...params, ...breachP, PAGE_SIZE, offset]
   );
 
-  // Attach the comment count each row needs for the list badge.
+  // Attach the comment count each row needs for the list badge, and the SLA
+  // state each row carries for the breach badge.
   for (const row of rows) {
     const [{ c }] = await query('SELECT COUNT(*) AS c FROM comments WHERE ticket_id = ?', [row.id]);
     row.comment_count = c;
+    row.sla = evaluateSla({
+      priority: row.priority,
+      elapsedSeconds: row.elapsed_seconds,
+      responded: row.first_response_at != null,
+    });
+    delete row.elapsed_seconds;
+    delete row.first_response_at;
   }
 
   const [{ total }] = await query(
-    `SELECT COUNT(*) AS total FROM tickets t WHERE ${whereSql}`,
-    params
+    `SELECT COUNT(*) AS total
+       FROM tickets t${breachedOnly ? FIRST_RESPONSE_JOIN : ''}
+      WHERE ${whereSql}${breachSql}`,
+    [...params, ...breachP]
   );
 
   return { rows, total, page: safePage, pageSize: PAGE_SIZE };
@@ -85,14 +135,25 @@ export async function getTicketById(id, orgId = null) {
     params.push(orgId);
   }
   const rows = await query(
-    `SELECT t.*, u.name AS assignee_name, r.name AS requester_name, r.email AS requester_email
+    `SELECT t.*, u.name AS assignee_name, r.name AS requester_name, r.email AS requester_email,
+            fr.first_response_at,
+            ${ELAPSED_SECONDS} AS elapsed_seconds
        FROM tickets t
        LEFT JOIN users u ON u.id = t.assignee_id
-       JOIN users r ON r.id = t.requester_id
+       JOIN users r ON r.id = t.requester_id${FIRST_RESPONSE_JOIN}
       WHERE ${where.join(' AND ')}`,
     params
   );
-  return rows[0] || null;
+  const ticket = rows[0];
+  if (!ticket) return null;
+  ticket.sla = evaluateSla({
+    priority: ticket.priority,
+    elapsedSeconds: ticket.elapsed_seconds,
+    responded: ticket.first_response_at != null,
+  });
+  delete ticket.elapsed_seconds;
+  delete ticket.first_response_at;
+  return ticket;
 }
 
 export async function listComments(ticketId) {

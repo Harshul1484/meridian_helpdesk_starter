@@ -21,6 +21,7 @@ router.get('/', requireAuth, async (req, res, next) => {
       priority: req.query.priority,
       sortBy: req.query.sortBy || 'created_at',
       order: req.query.order || 'desc',
+      breachedOnly: req.query.breached === 'true' || req.query.breached === '1',
     });
     res.json(result);
   } catch (err) {
