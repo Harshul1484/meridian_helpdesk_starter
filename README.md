@@ -8,6 +8,20 @@ exercise. It runs. Read the brief for what to do with it.
 
 ---
 
+## Submission (read these)
+
+| Deliverable | File |
+| ----------- | ---- |
+| Part 1 — ranked code review + which five I fixed | [`REVIEW.md`](REVIEW.md) |
+| Part 2 — decision notes | [`DECISIONS.md`](DECISIONS.md) |
+| AI log | [`AI-LOG.md`](AI-LOG.md) |
+
+The **five Part 1 fixes** are separate commits prefixed `fix(...)`, all landed
+before the Part 2 work (prefixed `feat(part2: ...)`), so they are easy to review
+in isolation. Run the server tests with `cd server && npm test`.
+
+---
+
 ## Stack
 
 | Layer    | Technology                                            |
@@ -83,12 +97,27 @@ not be able to see each other's tickets.
 | ------ | -------------------------------- | ------------------------------ |
 | POST   | `/api/auth/login`                | Returns a JWT                  |
 | POST   | `/api/auth/invite/accept`        | New joiner sets their password |
-| GET    | `/api/tickets`                   | Paginated, 20 per page         |
+| GET    | `/api/tickets`                   | Paginated, 20 per page; `?breached=true` filters to breached |
 | GET    | `/api/tickets/:id`               | Ticket plus its comments       |
 | POST   | `/api/tickets`                   | Raise a ticket                 |
 | PATCH  | `/api/tickets/:id/assign`        | Claim a ticket                 |
 | DELETE | `/api/tickets/:id`               | Admin only                     |
 | POST   | `/api/tickets/:id/comments`      | Add a comment                  |
+
+## SLA breach tracking (Part 2)
+
+Every ticket from the list and detail endpoints carries an `sla` object:
+
+```json
+"sla": { "breached": true, "responded": false, "targetHours": 24, "elapsedHours": 55 }
+```
+
+A ticket is **breached** when the time from creation to its first non-internal
+agent/admin reply (or to now, if unanswered) exceeds the priority target in
+`server/src/config.js` (`slaTargets`: P1 4h · P2 24h · P3 72h). The list shows a
+red badge on breached rows and a "Breached only" filter; the detail page shows
+the badge next to the subject. See [`DECISIONS.md`](DECISIONS.md) for the choices
+behind the ambiguous parts of the spec.
 
 ## Layout
 
