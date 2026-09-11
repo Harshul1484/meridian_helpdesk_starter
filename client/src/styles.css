@@ -1,8 +1,10 @@
-:root { font-family: ui-sans-serif, system-ui, sans-serif; color-scheme: light; }
+:root { font-family: ui-sans-serif, system-ui, sans-serif; color-scheme: light;
+  --panel-w: 600px; --header-h: 56px; }
 * { box-sizing: border-box; }
 body { margin: 0; background: #f7f7f9; color: #111; }
 .layout header { display:flex; justify-content:space-between; align-items:center;
-  padding: 12px 20px; background:#000; color:#fff; }
+  height: var(--header-h); padding: 0 20px; background:#000; color:#fff;
+  position: sticky; top: 0; z-index: 100; }
 .layout header a { color:#fff; text-decoration:none; font-weight:700; }
 .layout header nav { display:flex; gap:12px; align-items:center; font-size:14px; }
 main { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
@@ -28,3 +30,46 @@ button:disabled { opacity:.4; cursor:default; }
 .sla-badge { display:inline-block; margin-left:8px; padding:1px 8px; border-radius:999px;
   background:#b00020; color:#fff; font-size:12px; font-weight:700; vertical-align:middle;
   text-transform:uppercase; letter-spacing:.02em; }
+
+/* Ticket list rows -> open in a side panel */
+.ticket-link { color:#1a3fb0; text-decoration:underline; cursor:pointer; }
+.ticket-link:hover { color:#0b2a8a; }
+tbody tr { cursor:pointer; }
+tbody tr:hover { background:#fafaff; }
+tbody tr.selected { background:#eaeeff; }
+tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 #1a3fb0; }
+
+/* Asana-style slide-in detail panel */
+.panel { position:fixed; top:var(--header-h); right:0; bottom:0;
+  width:min(var(--panel-w), 100vw); background:#fff; border-left:1px solid #e6e6ea;
+  box-shadow:-10px 0 30px rgba(0,0,0,.12); z-index:60;
+  display:flex; flex-direction:column; animation:panel-in .2s ease; }
+body.panel-closing .panel { animation:panel-out .18s ease forwards; }
+.panel-header { flex:0 0 auto; display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border-bottom:1px solid #eee; background:#fff; }
+.panel-close { background:transparent; color:#333; border:1px solid transparent;
+  font-size:18px; line-height:1; padding:6px 12px; border-radius:6px; cursor:pointer; }
+.panel-close:hover { background:#f0f0f3; }
+.panel-body { flex:1 1 auto; overflow-y:auto; padding:0 24px 40px; }
+.panel-body .ticket-detail h1 { margin-top:12px; }
+@keyframes panel-in { from { transform:translateX(100%); } to { transform:none; } }
+@keyframes panel-out { from { transform:none; } to { transform:translateX(100%); } }
+
+/* Editable ticket properties (status / priority / assignee) */
+.props { display:flex; flex-direction:column; gap:8px; margin:12px 0 16px; max-width:420px; }
+.prop { display:flex; align-items:center; gap:12px; }
+.prop-label { width:84px; flex:0 0 auto; color:#555; font-size:13px; font-weight:600; }
+.prop select { padding:5px 8px; border:1px solid #ccc; border-radius:4px; background:#fff;
+  font-size:14px; min-width:170px; cursor:pointer; }
+.prop > span { font-size:14px; }
+
+/* Reply form */
+.reply-form { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:12px; }
+.reply-form textarea { width:100%; padding:10px; border:1px solid #ccc; border-radius:6px;
+  font:inherit; resize:vertical; }
+
+/* On wide screens the list reflows to sit beside the panel (no dimming). */
+@media (min-width: 900px) {
+  body.panel-open main { max-width:none; margin-left:0; margin-right:0;
+    padding-right: calc(var(--panel-w) + 24px); }
+}

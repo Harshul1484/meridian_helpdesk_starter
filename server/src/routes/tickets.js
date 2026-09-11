@@ -7,9 +7,21 @@ import {
   assignTicket,
   deleteTicket,
   listComments,
+  listAssignableUsers,
+  updateTicket,
 } from '../services/ticketService.js';
 
 const router = express.Router();
+
+// Users who can be assigned tickets in the caller's org (for the assignee
+// dropdown). Two path segments, so it never collides with GET '/:id'.
+router.get('/meta/assignees', requireAuth, async (req, res, next) => {
+  try {
+    res.json(await listAssignableUsers(req.user.orgId));
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/', requireAuth, async (req, res, next) => {
   try {
@@ -57,6 +69,25 @@ router.post('/', requireAuth, async (req, res, next) => {
       requesterId: req.user.id,
     });
     res.status(201).json(ticket);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Edit a ticket's status / priority / assignee. Agents and admins only,
+// scoped to the caller's org.
+router.patch('/:id', requireAuth, requireRole('agent', 'admin'), async (req, res, next) => {
+  try {
+    const { status, priority, assigneeId } = req.body;
+    const fields = {};
+    if (status !== undefined) fields.status = status;
+    if (priority !== undefined) fields.priority = priority;
+    if (assigneeId !== undefined) fields.assigneeId = assigneeId;
+
+    const result = await updateTicket(Number(req.params.id), req.user.orgId, fields);
+    if (!result) return res.status(404).json({ error: 'Not found' });
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result.ticket);
   } catch (err) {
     next(err);
   }

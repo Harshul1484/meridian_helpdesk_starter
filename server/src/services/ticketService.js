@@ -194,3 +194,63 @@ export async function assignTicket(ticketId, assigneeId) {
 export async function deleteTicket(id) {
   await query('DELETE FROM tickets WHERE id = ?', [id]);
 }
+
+const STATUS_VALUES = ['open', 'pending', 'resolved', 'closed'];
+const PRIORITY_VALUES = ['P1', 'P2', 'P3'];
+
+/**
+ * Users who can be assigned a ticket in this org (agents and admins).
+ * Feeds the assignee dropdown on the ticket panel.
+ */
+export async function listAssignableUsers(orgId) {
+  return query(
+    `SELECT id, name, role FROM users
+      WHERE org_id = ? AND role IN ('agent','admin')
+      ORDER BY name`,
+    [orgId]
+  );
+}
+
+/**
+ * Update a ticket's status, priority and/or assignee, scoped to the caller's
+ * org. Only the fields present in `fields` are changed. Returns null if the
+ * ticket isn't in this org, { error } for a bad value, or { ticket } on success.
+ */
+export async function updateTicket(id, orgId, fields) {
+  const existing = await getTicketById(id, orgId);
+  if (!existing) return null;
+
+  const sets = [];
+  const params = [];
+
+  if (fields.status !== undefined) {
+    if (!STATUS_VALUES.includes(fields.status)) return { error: 'Invalid status' };
+    sets.push('status = ?');
+    params.push(fields.status);
+  }
+  if (fields.priority !== undefined) {
+    if (!PRIORITY_VALUES.includes(fields.priority)) return { error: 'Invalid priority' };
+    sets.push('priority = ?');
+    params.push(fields.priority);
+  }
+  if (fields.assigneeId !== undefined) {
+    if (fields.assigneeId === null || fields.assigneeId === '') {
+      sets.push('assignee_id = NULL');
+    } else {
+      // The assignee must be an agent/admin in the same org - stops cross-org
+      // assignment and assigning to a requester.
+      const [u] = await query(
+        "SELECT id FROM users WHERE id = ? AND org_id = ? AND role IN ('agent','admin')",
+        [fields.assigneeId, orgId]
+      );
+      if (!u) return { error: 'Invalid assignee' };
+      sets.push('assignee_id = ?');
+      params.push(fields.assigneeId);
+    }
+  }
+
+  if (sets.length) {
+    await query(`UPDATE tickets SET ${sets.join(', ')} WHERE id = ? AND org_id = ?`, [...params, id, orgId]);
+  }
+  return { ticket: await getTicketById(id, orgId) };
+}
