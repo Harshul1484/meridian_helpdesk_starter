@@ -46,7 +46,17 @@ export default function TicketDetail() {
 
   return (
     <div className="ticket-detail">
-      <h1>{ticket.subject}</h1>
+      <h1>
+        {ticket.subject}
+        {ticket.sla?.breached && (
+          <span
+            className="sla-badge"
+            title={`Response target ${ticket.sla.targetHours}h · ${ticket.sla.elapsedHours}h elapsed${ticket.sla.responded ? ' to first response' : ' with no response yet'}`}
+          >
+            SLA breached
+          </span>
+        )}
+      </h1>
       <p className="meta">
         #{ticket.id} · {ticket.status} · {ticket.priority} ·
         requested by {ticket.requester_name} ({ticket.requester_email})

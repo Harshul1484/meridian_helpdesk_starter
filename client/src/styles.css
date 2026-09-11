@@ -23,3 +23,8 @@ button:disabled { opacity:.4; cursor:default; }
 .comments .when { color:#666; font-size:12px; margin-left:8px; }
 .comment-body { white-space: pre-wrap; overflow-wrap: anywhere; margin-top:6px; }
 .meta { color:#555; font-size:14px; }
+.breached-filter { display:flex; align-items:center; gap:6px; font-size:14px; white-space:nowrap; }
+.breached-filter input { margin:0; }
+.sla-badge { display:inline-block; margin-left:8px; padding:1px 8px; border-radius:999px;
+  background:#b00020; color:#fff; font-size:12px; font-weight:700; vertical-align:middle;
+  text-transform:uppercase; letter-spacing:.02em; }
