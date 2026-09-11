@@ -30,7 +30,9 @@ router.get('/', requireAuth, async (req, res, next) => {
 
 router.get('/:id', requireAuth, async (req, res, next) => {
   try {
-    const ticket = await getTicketById(Number(req.params.id));
+    // Scope to the caller's org: a ticket in another organisation must read as
+    // "not found", never return its body, requester email, or comments.
+    const ticket = await getTicketById(Number(req.params.id), req.user.orgId);
     if (!ticket) return res.status(404).json({ error: 'Not found' });
 
     const comments = await listComments(ticket.id);
