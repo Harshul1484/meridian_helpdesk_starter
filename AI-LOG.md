@@ -2,9 +2,15 @@
 
 **Assistant used:** Claude Code (Claude Opus). I used it throughout — to read
 the codebase, draft the Part 1 findings, write the five fixes and the Part 2
-feature, and to help word these documents. I ran everything myself against a
-local Docker MySQL + the seeded data and checked the output rather than trusting
-it. The places it was wrong or would have misled me, and how I caught them:
+feature, and to help word these documents. **All of the written deliverables in
+this repo were produced with AI as well:** the review (`REVIEW.md`), the Part 2
+decision notes (`DECISIONS.md`), this AI log, the enhancement notes
+(`ENHANCEMENTS.md`), the README additions, and the commit messages were all
+drafted with Claude and then read, corrected, and confirmed by me against the
+actual code and a running instance — I did not sign off on anything I had not
+verified myself. I ran everything against a local Docker MySQL + the seeded data
+and checked the output rather than trusting it. The places it was wrong or would
+have misled me, and how I caught them:
 
 **1. The SLA timezone — the one that would have shipped a wrong metric.**
 The obvious approach the model reached for first was to compute elapsed time

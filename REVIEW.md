@@ -10,19 +10,19 @@ I **fixed the five highest-ranked** — with one deliberate exception noted belo
 
 | # | Finding | File | Severity | Fixed? |
 |---|---------|------|----------|--------|
-| 1 | `DELETE /tickets/:id` has no admin check and no org scope | `routes/tickets.js:75` | Critical | ✅ Fixed |
-| 2 | `invite/accept` stores password unhashed & is unauthenticated → account takeover | `routes/auth.js:42` | Critical | ⛔ Documented (needs refactor) |
-| 3 | `GET /tickets/:id` leaks tickets across organisations (IDOR) | `routes/tickets.js:31` | Critical | ✅ Fixed |
-| 4 | Stored XSS: comment body rendered as raw HTML | `TicketDetail.jsx:65` | High | ✅ Fixed |
-| 5 | SQL injection via `sortBy` / `order` | `services/ticketService.js:38` | High | ✅ Fixed |
-| 6 | Pagination offset off-by-one hides the newest 20 tickets | `services/ticketService.js:29` | High | ✅ Fixed (in place of #2) |
-| 7 | Secrets committed; weak JWT secret fallback | `server/.env`, `config.js:16` | High | ⛔ Documented |
-| 8 | Internal comments shown to requesters | `services/ticketService.js:69`, `TicketDetail.jsx` | Medium‑High | ⛔ Documented |
-| 9 | List filters/sort never trigger a refetch | `TicketList.jsx:31` | Medium | ⛔ Documented |
-| 10 | `PATCH /:id/assign`: no org scope, no role check, non‑atomic | `routes/tickets.js:62`, `services/ticketService.js:89` | Medium | ⛔ Documented |
-| 11 | Timezone inconsistency in stored timestamps | `reset-db.js`, `comments.js:19`, schema | Medium | ⛔ Documented |
-| 12 | N+1 queries for comment counts | `services/ticketService.js:44` | Low‑Medium | ⛔ Documented |
-| — | Minor notes (index keys, CORS, rate‑limit, input validation) | various | Low | ⛔ Documented |
+| 1 | `DELETE /tickets/:id` has no admin check and no org scope | `routes/tickets.js:75` | Critical | [x] Fixed |
+| 2 | `invite/accept` stores password unhashed & is unauthenticated → account takeover | `routes/auth.js:42` | Critical | [ ] Documented (needs refactor) |
+| 3 | `GET /tickets/:id` leaks tickets across organisations (IDOR) | `routes/tickets.js:31` | Critical | [x] Fixed |
+| 4 | Stored XSS: comment body rendered as raw HTML | `TicketDetail.jsx:65` | High | [x] Fixed |
+| 5 | SQL injection via `sortBy` / `order` | `services/ticketService.js:38` | High | [x] Fixed |
+| 6 | Pagination offset off-by-one hides the newest 20 tickets | `services/ticketService.js:29` | High | [x] Fixed (in place of #2) |
+| 7 | Secrets committed; weak JWT secret fallback | `server/.env`, `config.js:16` | High | [ ] Documented |
+| 8 | Internal comments shown to requesters | `services/ticketService.js:69`, `TicketDetail.jsx` | Medium‑High | [ ] Documented |
+| 9 | List filters/sort never trigger a refetch | `TicketList.jsx:31` | Medium | [ ] Documented |
+| 10 | `PATCH /:id/assign`: no org scope, no role check, non‑atomic | `routes/tickets.js:62`, `services/ticketService.js:89` | Medium | [ ] Documented |
+| 11 | Timezone inconsistency in stored timestamps | `reset-db.js`, `comments.js:19`, schema | Medium | [ ] Documented |
+| 12 | N+1 queries for comment counts | `services/ticketService.js:44` | Low‑Medium | [ ] Documented |
+| — | Minor notes (index keys, CORS, rate‑limit, input validation) | various | Low | [ ] Documented |
 
 **Which five I fixed:** #1, #3, #4, #5, #6. See "A note on the fix set" after the findings.
 
@@ -33,7 +33,7 @@ different fixes, but they should be read together.
 
 ---
 
-## 1. `DELETE /tickets/:id` — any user, any org can delete any ticket ✅ FIXED
+## 1. `DELETE /tickets/:id` — any user, any org can delete any ticket [x] FIXED
 
 - **Where:** `server/src/routes/tickets.js:75`
 - **What is wrong:** The route is guarded by `requireAuth` only — no
@@ -49,7 +49,7 @@ different fixes, but they should be read together.
   `req.user.orgId` so a foreign ticket returns 404.
 - **Severity:** Critical.
 
-## 2. `POST /api/auth/invite/accept` — unhashed password + unauthenticated ⛔ DOCUMENTED
+## 2. `POST /api/auth/invite/accept` — unhashed password + unauthenticated [ ] DOCUMENTED
 
 - **Where:** `server/src/routes/auth.js:42-54` (the write is line 49).
 - **What is wrong:** The endpoint takes `{ userId, password }` with **no
@@ -77,7 +77,7 @@ different fixes, but they should be read together.
   login. I placed it second only because weaponising it into takeover needs a
   crafted request, whereas #1 is a one-liner any logged-in user can fire.
 
-## 3. `GET /tickets/:id` — cross-org ticket read (IDOR) ✅ FIXED
+## 3. `GET /tickets/:id` — cross-org ticket read (IDOR) [x] FIXED
 
 - **Where:** `server/src/routes/tickets.js:31-41` (lookup at line 33).
 - **What is wrong:** `getTicketById(Number(req.params.id))` runs with no org
@@ -91,7 +91,7 @@ different fixes, but they should be read together.
 - **How to fix:** Pass `req.user.orgId` into the lookup so foreign tickets 404.
 - **Severity:** Critical. Related to #1 (same missing org scope) and #10.
 
-## 4. Stored XSS — comment body rendered as raw HTML ✅ FIXED
+## 4. Stored XSS — comment body rendered as raw HTML [x] FIXED
 
 - **Where:** `client/src/features/tickets/TicketDetail.jsx:65`
 - **What is wrong:** `<div dangerouslySetInnerHTML={{ __html: c.body }} />`
@@ -107,7 +107,7 @@ different fixes, but they should be read together.
   `localStorage`.)
 - **Severity:** High.
 
-## 5. SQL injection via `sortBy` / `order` ✅ FIXED
+## 5. SQL injection via `sortBy` / `order` [x] FIXED
 
 - **Where:** `server/src/services/ticketService.js:38` —
   `ORDER BY t.${sortBy} ${order}`.
@@ -124,7 +124,7 @@ different fixes, but they should be read together.
   `ASC`/`DESC`. The UI's four options map unchanged.
 - **Severity:** High.
 
-## 6. Pagination offset is off-by-one — page 1 hides the newest tickets ✅ FIXED
+## 6. Pagination offset is off-by-one — page 1 hides the newest tickets [x] FIXED
 
 - **Where:** `server/src/services/ticketService.js:29` — `offset = page * PAGE_SIZE`.
 - **What is wrong:** Pages are 1-based, so with the default `page = 1` the offset
@@ -136,7 +136,7 @@ different fixes, but they should be read together.
 - **How to fix:** `offset = (page - 1) * PAGE_SIZE`, and clamp `page` to ≥ 1.
 - **Severity:** High.
 
-## 7. Secrets committed to the repo; weak JWT fallback ⛔ DOCUMENTED
+## 7. Secrets committed to the repo; weak JWT fallback [ ] DOCUMENTED
 
 - **Where:** `server/.env` (real `JWT_SECRET` and DB password), `config.js:16`
   (`|| 'dev-secret-change-me'`), `docker-compose.yml:13`; `.gitignore` does not
@@ -159,7 +159,7 @@ different fixes, but they should be read together.
   reasoning about it from the code.)*
 - **Severity:** High.
 
-## 8. Internal comments are shown to requesters ⛔ DOCUMENTED
+## 8. Internal comments are shown to requesters [ ] DOCUMENTED
 
 - **Where:** `services/ticketService.js:69-77` (`listComments` returns every
   comment) and `TicketDetail.jsx` (renders them all; the CSS even styles
@@ -176,7 +176,7 @@ different fixes, but they should be read together.
 - **Severity:** Medium-High (confidentiality). Related to #3 (same detail
   response).
 
-## 9. List filters and sort never trigger a refetch ⛔ DOCUMENTED
+## 9. List filters and sort never trigger a refetch [ ] DOCUMENTED
 
 - **Where:** `client/src/features/tickets/TicketList.jsx:31` — the effect's
   dependency array is `[page]`.
@@ -192,7 +192,7 @@ different fixes, but they should be read together.
   pre-existing controls untouched to respect the five-fix limit — see DECISIONS.md.
 - **Severity:** Medium.
 
-## 10. `PATCH /:id/assign` — no org scope, no role check, non-atomic ⛔ DOCUMENTED
+## 10. `PATCH /:id/assign` — no org scope, no role check, non-atomic [ ] DOCUMENTED
 
 - **Where:** `routes/tickets.js:62-73`; `services/ticketService.js:89-102`.
 - **What is wrong:** Three things. (a) No org scope — a user can claim a ticket in
@@ -209,7 +209,7 @@ different fixes, but they should be read together.
   NULL` and check `affectedRows`.
 - **Severity:** Medium. Same authorization family as #1 and #3.
 
-## 11. Timezone inconsistency in stored timestamps ⛔ DOCUMENTED
+## 11. Timezone inconsistency in stored timestamps [ ] DOCUMENTED
 
 - **Where:** `scripts/reset-db.js` (writes `new Date(...).toISOString()` = UTC),
   `routes/comments.js:19` (same), vs. schema `DEFAULT CURRENT_TIMESTAMP` and
@@ -231,7 +231,7 @@ different fixes, but they should be read together.
   corrupts a metric.
 - **Severity:** Medium (latent, environment-dependent).
 
-## 12. N+1 queries for comment counts ⛔ DOCUMENTED
+## 12. N+1 queries for comment counts [ ] DOCUMENTED
 
 - **Where:** `services/ticketService.js:44-47` — a `COUNT(*)` per row inside the
   list loop.
