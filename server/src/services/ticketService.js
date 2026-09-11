@@ -36,7 +36,11 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
   }
 
   const whereSql = where.join(' AND ');
-  const offset = page * PAGE_SIZE;
+  // Pages are 1-based: page 1 must start at offset 0. The original
+  // `page * PAGE_SIZE` skipped the first 20 (newest) tickets entirely and left
+  // the last reachable page blank.
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  const offset = (safePage - 1) * PAGE_SIZE;
 
   const sortCol = SORTABLE[sortBy] || SORTABLE.created_at;
   const sortDir = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
@@ -64,7 +68,7 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
     params
   );
 
-  return { rows, total, page, pageSize: PAGE_SIZE };
+  return { rows, total, page: safePage, pageSize: PAGE_SIZE };
 }
 
 /**
