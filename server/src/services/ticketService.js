@@ -2,6 +2,16 @@ import { query } from '../db/pool.js';
 
 const PAGE_SIZE = 20;
 
+// Columns the list UI can sort by. Whitelisting keeps sortBy/order out of the
+// SQL string as raw values - they are interpolated into ORDER BY and cannot be
+// parameterised, so an allow-list is the safe way to accept them.
+const SORTABLE = {
+  created_at: 't.created_at',
+  updated_at: 't.updated_at',
+  priority: 't.priority',
+  status: 't.status',
+};
+
 /**
  * Paginated ticket list for the current organisation.
  *
@@ -28,6 +38,9 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
   const whereSql = where.join(' AND ');
   const offset = page * PAGE_SIZE;
 
+  const sortCol = SORTABLE[sortBy] || SORTABLE.created_at;
+  const sortDir = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
   const rows = await query(
     `SELECT t.id, t.subject, t.status, t.priority, t.created_at, t.updated_at,
             t.assignee_id, u.name AS assignee_name, r.name AS requester_name
@@ -35,7 +48,7 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
        LEFT JOIN users u ON u.id = t.assignee_id
        JOIN users r ON r.id = t.requester_id
       WHERE ${whereSql}
-      ORDER BY t.${sortBy} ${order}
+      ORDER BY ${sortCol} ${sortDir}
       LIMIT ? OFFSET ?`,
     [...params, PAGE_SIZE, offset]
   );
